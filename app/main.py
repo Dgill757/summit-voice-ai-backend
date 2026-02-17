@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 from datetime import datetime
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Import database
 from app.database import init_db, get_db
@@ -66,6 +67,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Respect Railway/Proxy forwarded proto/host so redirects don't downgrade to http.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.add_middleware(
     CORSMiddleware,
