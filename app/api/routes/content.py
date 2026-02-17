@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import ContentCalendar
 from pydantic import BaseModel
 from app.services.image_generator import ImageGenerator
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -84,7 +85,11 @@ async def get_content(content_id: str, db: Session = Depends(get_db)) -> Dict[st
 
 
 @router.post("/")
-async def create_content(payload: ContentCreate, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def create_content(
+    payload: ContentCreate,
+    db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(get_current_user),
+) -> Dict[str, Any]:
     row = ContentCalendar(
         title=payload.title,
         content_type=payload.content_type,
@@ -111,7 +116,8 @@ async def generate_content_image(
     model: str = "auto",
     style: str = "photorealistic",
     aspect_ratio: str = "1:1",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(get_current_user),
 ):
     """Generate AI image for content"""
 

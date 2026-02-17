@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import Client, Meeting
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -57,7 +58,11 @@ async def list_clients(
 
 
 @router.post("/")
-async def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def create_client(
+    payload: ClientCreate,
+    db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(get_current_user),
+) -> Dict[str, Any]:
     client = Client(
         company_name=payload.company_name,
         email=payload.email,

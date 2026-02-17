@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Prospect
 from app.services.agent_executor import execute_agent
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -90,7 +91,11 @@ async def get_leads(
 
 
 @router.post("/")
-async def create_lead(payload: LeadCreate, db: Session = Depends(get_db)):
+async def create_lead(
+    payload: LeadCreate,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     if payload.email:
         existing = db.query(Prospect).filter(Prospect.email == payload.email).first()
         if existing:
@@ -127,7 +132,11 @@ class LeadImportPayload(BaseModel):
 
 
 @router.post("/import")
-async def import_leads(payload: LeadImportPayload, db: Session = Depends(get_db)):
+async def import_leads(
+    payload: LeadImportPayload,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     reader = csv.DictReader(io.StringIO(payload.csv_data))
     imported = 0
     skipped = 0
@@ -210,7 +219,12 @@ async def get_lead(lead_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{lead_id}")
-async def update_lead(lead_id: str, payload: LeadUpdate, db: Session = Depends(get_db)):
+async def update_lead(
+    lead_id: str,
+    payload: LeadUpdate,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     lead = db.query(Prospect).filter(Prospect.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -229,7 +243,11 @@ async def update_lead(lead_id: str, payload: LeadUpdate, db: Session = Depends(g
 
 
 @router.delete("/{lead_id}")
-async def delete_lead(lead_id: str, db: Session = Depends(get_db)):
+async def delete_lead(
+    lead_id: str,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     lead = db.query(Prospect).filter(Prospect.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -239,7 +257,11 @@ async def delete_lead(lead_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{lead_id}/enrich")
-async def enrich_lead(lead_id: str, db: Session = Depends(get_db)):
+async def enrich_lead(
+    lead_id: str,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     lead = db.query(Prospect).filter(Prospect.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -252,7 +274,12 @@ class TagPayload(BaseModel):
 
 
 @router.post("/{lead_id}/tag")
-async def add_tag(lead_id: str, payload: TagPayload, db: Session = Depends(get_db)):
+async def add_tag(
+    lead_id: str,
+    payload: TagPayload,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     lead = db.query(Prospect).filter(Prospect.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")

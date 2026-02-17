@@ -88,3 +88,22 @@ def get_current_user(
         "email": settings.admin_email,
         "name": settings.admin_name,
     }
+
+
+def get_optional_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(AUTH_SCHEME),
+) -> Dict[str, Any] | None:
+    if creds is None or not creds.credentials:
+        return None
+    try:
+        payload = decode_token(creds.credentials)
+        email = str(payload.get("sub", "")).strip().lower()
+        if email != settings.admin_email.lower():
+            return None
+        return {
+            "id": "owner",
+            "email": settings.admin_email,
+            "name": settings.admin_name,
+        }
+    except jwt.PyJWTError:
+        return None

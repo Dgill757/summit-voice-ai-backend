@@ -89,19 +89,19 @@ async def root() -> dict:
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(
-    agents.router, prefix="/api/v1/agents", tags=["Agents"], dependencies=[Depends(get_current_user)]
+    agents.router, prefix="/api/v1/agents", tags=["Agents"]
 )
 app.include_router(
     prospects.router, prefix="/api/v1/prospects", tags=["Prospects"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    clients.router, prefix="/api/v1/clients", tags=["Clients"], dependencies=[Depends(get_current_user)]
+    clients.router, prefix="/api/v1/clients", tags=["Clients"]
 )
 app.include_router(
-    content.router, prefix="/api/v1/content", tags=["Content"], dependencies=[Depends(get_current_user)]
+    content.router, prefix="/api/v1/content", tags=["Content"]
 )
 app.include_router(
-    analytics.router, prefix="/api/v1/analytics", tags=["Analytics"], dependencies=[Depends(get_current_user)]
+    analytics.router, prefix="/api/v1/analytics", tags=["Analytics"]
 )
 app.include_router(
     meetings.router, prefix="/api/v1/meetings", tags=["Meetings"], dependencies=[Depends(get_current_user)]
@@ -116,13 +116,13 @@ app.include_router(
     workflows.router, prefix="/api/v1/workflows", tags=["Workflows"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    executions.router, prefix="/api/v1/executions", tags=["Executions"], dependencies=[Depends(get_current_user)]
+    executions.router, prefix="/api/v1/executions", tags=["Executions"]
 )
 app.include_router(
-    leads.router, prefix="/api/v1/leads", tags=["Leads"], dependencies=[Depends(get_current_user)]
+    leads.router, prefix="/api/v1/leads", tags=["Leads"]
 )
 app.include_router(
-    metrics.router, prefix="/api/v1/metrics", tags=["Metrics"], dependencies=[Depends(get_current_user)]
+    metrics.router, prefix="/api/v1/metrics", tags=["Metrics"]
 )
 app.include_router(
     users.router, prefix="/api/v1/users", tags=["Users"], dependencies=[Depends(get_current_user)]
@@ -137,7 +137,6 @@ app.include_router(
     dashboard_v1.router,
     prefix="/api/v1/dashboard",
     tags=["Dashboard"],
-    dependencies=[Depends(get_current_user)],
 )
 app.include_router(
     ai_builder.router,
