@@ -6,7 +6,7 @@ python-dotenv==1.0.1
 
 sqlalchemy==2.0.38
 alembic==1.14.1
-psycopg[binary]==3.2.3
+psycopg2-binary==2.9.10
 
 supabase==2.13.0
 postgrest==0.19.3
