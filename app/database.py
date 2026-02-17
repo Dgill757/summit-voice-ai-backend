@@ -45,8 +45,22 @@ def init_db() -> None:
     Initialize database by registering models and creating tables.
     """
     from app.models import Base
+    from app.seeds import seed_agents
 
     Base.metadata.create_all(bind=engine)
+
+    # Ensure runtime-only schema additions exist on existing Supabase deployments.
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE IF EXISTS agent_settings ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'Operations'")
+        )
+
+    # Seed baseline system agents.
+    db = SessionLocal()
+    try:
+        seed_agents(db)
+    finally:
+        db.close()
 
 
 def check_database_connection() -> bool:

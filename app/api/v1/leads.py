@@ -19,7 +19,10 @@ router = APIRouter()
 
 
 class LeadCreate(BaseModel):
-    company_name: str
+    company_name: Optional[str] = None
+    company: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     contact_name: Optional[str] = None
     title: Optional[str] = None
     email: Optional[str] = None
@@ -49,6 +52,8 @@ class LeadUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
     lead_score: Optional[int] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 @router.get("/")
@@ -90,9 +95,13 @@ async def create_lead(payload: LeadCreate, db: Session = Depends(get_db)):
         existing = db.query(Prospect).filter(Prospect.email == payload.email).first()
         if existing:
             raise HTTPException(status_code=400, detail="Lead with this email already exists")
+    company_name = payload.company_name or payload.company or "Unknown"
+    contact_name = payload.contact_name or " ".join(
+        [x for x in [payload.first_name, payload.last_name] if x]
+    ).strip() or None
     lead = Prospect(
-        company_name=payload.company_name,
-        contact_name=payload.contact_name,
+        company_name=company_name,
+        contact_name=contact_name,
         title=payload.title,
         email=payload.email,
         phone=payload.phone,
@@ -206,6 +215,12 @@ async def update_lead(lead_id: str, payload: LeadUpdate, db: Session = Depends(g
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     data = payload.model_dump(exclude_none=True)
+    first_name = data.pop("first_name", None)
+    last_name = data.pop("last_name", None)
+    if first_name or last_name:
+        data["contact_name"] = " ".join([x for x in [first_name, last_name] if x]).strip()
+    if "company" in data and "company_name" not in data:
+        data["company_name"] = data.pop("company")
     for k, v in data.items():
         setattr(lead, k, v)
     db.commit()
@@ -253,10 +268,19 @@ async def add_tag(lead_id: str, payload: TagPayload, db: Session = Depends(get_d
 
 def serialize_lead(row: Prospect) -> dict[str, Any]:
     cf = row.custom_fields or {}
+    first_name = None
+    last_name = None
+    if row.contact_name:
+        parts = row.contact_name.split()
+        first_name = parts[0] if parts else None
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else None
     return {
         "id": str(row.id),
         "company_name": row.company_name,
+        "company": row.company_name,
         "contact_name": row.contact_name,
+        "first_name": first_name,
+        "last_name": last_name,
         "title": row.title,
         "email": row.email,
         "phone": row.phone,

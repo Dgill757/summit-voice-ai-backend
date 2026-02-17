@@ -11,14 +11,19 @@ from app.database import get_db
 from app.models import AgentSetting, AgentLog
 from app.agents.registry import get_agent_class
 from app.websockets.connection_manager import manager
+from app.seeds import seed_agents
 
 router = APIRouter()
 
 
 @router.get("/")
-async def list_agents(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+async def list_agents(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """List configured agents with normalized frontend-friendly fields."""
     agents = db.query(AgentSetting).order_by(AgentSetting.agent_id.asc()).all()
+    if not agents:
+        seed_agents(db)
+        agents = db.query(AgentSetting).order_by(AgentSetting.agent_id.asc()).all()
+
     response: List[Dict[str, Any]] = []
     for a in agents:
         last_log = (
@@ -31,25 +36,27 @@ async def list_agents(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
         last_message = (last_log.message if last_log and last_log.message else None)
 
         # Normalized keys for frontend plus legacy keys for compatibility.
-        response.append(
-            {
-                "id": a.agent_id,
-                "name": a.agent_name,
-                "enabled": a.is_enabled,
-                "schedule": a.schedule_cron,
-                "last_run": a.last_run_at.isoformat() if a.last_run_at else None,
-                "next_run": a.next_run_at.isoformat() if a.next_run_at else None,
-                "status": status,
-                "last_message": last_message,
-                "agent_id": a.agent_id,
-                "agent_name": a.agent_name,
-                "is_enabled": a.is_enabled,
-                "schedule_cron": a.schedule_cron,
-                "last_run_at": a.last_run_at.isoformat() if a.last_run_at else None,
-                "next_run_at": a.next_run_at.isoformat() if a.next_run_at else None,
-            }
-        )
-    return response
+        response.append({
+            "id": a.agent_id,
+            "name": a.agent_name,
+            "description": (a.config or {}).get("description", ""),
+            "tier": a.tier or "Operations",
+            "enabled": a.is_enabled,
+            "schedule": a.schedule_cron,
+            "last_run": a.last_run_at.isoformat() if a.last_run_at else None,
+            "next_run": a.next_run_at.isoformat() if a.next_run_at else None,
+            "status": status,
+            "last_message": last_message,
+            "agent_id": a.agent_id,
+            "agent_name": a.agent_name,
+            "is_enabled": a.is_enabled,
+            "schedule_cron": a.schedule_cron,
+            "last_run_at": a.last_run_at.isoformat() if a.last_run_at else None,
+            "next_run_at": a.next_run_at.isoformat() if a.next_run_at else None,
+        })
+
+    enabled_count = sum(1 for a in response if a["is_enabled"])
+    return {"agents": response, "total": len(response), "enabled": enabled_count}
 
 
 @router.get("/logs")
@@ -96,6 +103,8 @@ async def get_agent(agent_id: int, db: Session = Depends(get_db)) -> Dict[str, A
     return {
         "id": agent.agent_id,
         "name": agent.agent_name,
+        "description": (agent.config or {}).get("description", ""),
+        "tier": agent.tier or "Operations",
         "enabled": agent.is_enabled,
         "schedule": agent.schedule_cron,
         "config": agent.config or {},

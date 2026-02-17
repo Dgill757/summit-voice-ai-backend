@@ -185,6 +185,7 @@ class AgentSetting(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     agent_id = Column(Integer, nullable=False, unique=True)
     agent_name = Column(Text, nullable=False)
+    tier = Column(Text, default="Operations")
     is_enabled = Column(Boolean, default=True)
     schedule_cron = Column(Text)
     config = Column(JSONB, default=dict)

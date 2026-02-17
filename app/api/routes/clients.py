@@ -7,11 +7,22 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import Client, Meeting
 
 router = APIRouter()
+
+
+class ClientCreate(BaseModel):
+    company_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    monthly_value: Optional[float] = 0
+    notes: Optional[str] = None
+    status: Optional[str] = "active"
+    subscription_tier: Optional[str] = "standard"
 
 
 @router.get("/")
@@ -43,6 +54,31 @@ async def list_clients(
         }
         for c in clients
     ]
+
+
+@router.post("/")
+async def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    client = Client(
+        company_name=payload.company_name,
+        email=payload.email,
+        phone=payload.phone,
+        monthly_value=payload.monthly_value,
+        status=payload.status or "active",
+        subscription_tier=payload.subscription_tier or "standard",
+        custom_fields={"notes": payload.notes} if payload.notes else {},
+    )
+    db.add(client)
+    db.commit()
+    db.refresh(client)
+    return {
+        "id": str(client.id),
+        "company_name": client.company_name,
+        "email": client.email,
+        "phone": client.phone,
+        "monthly_value": float(client.monthly_value or 0),
+        "status": client.status,
+        "subscription_tier": client.subscription_tier,
+    }
 
 
 @router.get("/{client_id}")

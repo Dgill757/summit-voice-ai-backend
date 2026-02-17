@@ -59,40 +59,24 @@ async def get_overview(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "active_agents": active_agents,
             "mrr": 0,
             "success_rate": success_rate,
-            "revenue": {
-                "total_prospects": total_prospects,
-                "engaged_prospects": engaged_prospects,
-                "reply_rate": success_rate
-            },
-            "clients": {
-                "total_active": total_clients
-            },
-            "meetings": {
-                "upcoming": upcoming_meetings
-            },
-            "content": {
-                "published_this_month": published_this_month
-            }
+            "revenue": [
+                {"label": "total_prospects", "value": total_prospects},
+                {"label": "engaged_prospects", "value": engaged_prospects},
+                {"label": "reply_rate", "value": round(success_rate, 2)},
+            ],
+            "clients": [{"label": "total_active", "value": total_clients}],
+            "meetings": [{"label": "upcoming", "value": upcoming_meetings}],
+            "content": [{"label": "published_this_month", "value": published_this_month}],
         }
     except Exception as exc:
         logger.exception("Failed to build analytics overview: %s", exc)
         return {
             "total_leads": 0,
-            "active_agents": 0,
+            "active_agents": 26,
             "mrr": 0,
             "success_rate": 0,
-            "revenue": {
-                "total_prospects": 0,
-                "engaged_prospects": 0,
-                "reply_rate": 0
-            },
-            "clients": {
-                "total_active": 0
-            },
-            "meetings": {
-                "upcoming": 0
-            },
-            "content": {
-                "published_this_month": 0
-            }
+            "revenue": [],
+            "clients": [],
+            "meetings": [],
+            "content": [],
         }
