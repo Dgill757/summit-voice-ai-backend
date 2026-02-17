@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     admin_name: str = Field(default="Dan Gill", alias="ADMIN_NAME")
     admin_password_hash: SecretStr = Field(
         default=SecretStr(
-            "pbkdf2_sha256$210000$3f2d1a4bc912d58e6af3e77123aa6c80$"
-            "a0266e8abcc8812124eb8501059e03eca1257e1bb6c785f8001add0792a738b2"
+            "pbkdf2_sha256$210000$a9419468634dcc737dd5c2a3b19fd3f3$"
+            "b8b9226408ea3c456eb89a571ec04c9cac71546c009e4d031b2e855570ad89a8"
         ),
         alias="ADMIN_PASSWORD_HASH",
     )
