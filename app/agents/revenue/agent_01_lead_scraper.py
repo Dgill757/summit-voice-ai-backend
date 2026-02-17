@@ -35,6 +35,9 @@ class LeadScraperAgent(BaseAgent):
         prospects_scraped.extend(gmaps_prospects)
         
         # Save to database
+        if not prospects_scraped and os.getenv("DEMO_MODE", "").lower() == "true":
+            prospects_scraped = self._generate_demo_prospects(count=max(5, daily_target // 2))
+
         saved_count = await self._save_prospects(prospects_scraped)
         
         return {
@@ -48,6 +51,26 @@ class LeadScraperAgent(BaseAgent):
                 }
             }
         }
+
+    def _generate_demo_prospects(self, count: int = 10) -> List[Dict[str, Any]]:
+        """Generate deterministic demo leads when external APIs are unavailable."""
+        demo: List[Dict[str, Any]] = []
+        for i in range(count):
+            demo.append(
+                {
+                    "company_name": f"Summit Roofing Demo {i + 1}",
+                    "contact_name": f"Owner {i + 1}",
+                    "title": "Owner",
+                    "email": f"demo.lead{i + 1}@example.com",
+                    "phone": f"+1-555-010{i:02d}",
+                    "website": f"https://summit-demo-{i + 1}.com",
+                    "city": "Phoenix",
+                    "state": "AZ",
+                    "industry": "roofing",
+                    "source": "demo",
+                }
+            )
+        return demo
     
     async def _scrape_apollo(self, limit: int) -> List[Dict[str, Any]]:
         """Scrape leads from Apollo.io"""

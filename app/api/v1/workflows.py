@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.core.security import get_current_user
 from app.services.workflow_engine import (
     create_workflow,
     execute_workflow,
@@ -32,7 +33,11 @@ async def get_workflows(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-async def post_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)):
+async def post_workflow(
+    payload: WorkflowCreate,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     return create_workflow(db, payload.model_dump())
 
 
@@ -45,7 +50,11 @@ async def workflow_detail(workflow_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/execute")
-async def workflow_execute(workflow_id: str, db: Session = Depends(get_db)):
+async def workflow_execute(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     result = await execute_workflow(db, workflow_id)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Workflow execution failed"))
@@ -53,11 +62,18 @@ async def workflow_execute(workflow_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{agent_id}/enable")
-async def enable_workflow(agent_id: int, db: Session = Depends(get_db)):
+async def enable_workflow(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     return toggle_workflow(db, agent_id, True)
 
 
 @router.post("/{agent_id}/disable")
-async def disable_workflow(agent_id: int, db: Session = Depends(get_db)):
+async def disable_workflow(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    user: dict[str, Any] = Depends(get_current_user),
+):
     return toggle_workflow(db, agent_id, False)
-

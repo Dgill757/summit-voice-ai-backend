@@ -4,8 +4,12 @@ Health API Routes
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from fastapi import status
+import os
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
-from app.database import check_database_connection, database_health
+from app.database import check_database_connection, database_health, get_db
 
 router = APIRouter()
 
@@ -22,3 +26,30 @@ async def health_check() -> JSONResponse:
             "database": db,
         },
     )
+
+
+@router.get("/integrations")
+async def check_integrations(db: Session = Depends(get_db)) -> dict:
+    """Verify external API key presence and database connectivity."""
+    checks = {
+        "anthropic": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "apollo": bool(os.getenv("APOLLO_API_KEY")),
+        "clearbit": bool(os.getenv("CLEARBIT_API_KEY")),
+        "hunter": bool(os.getenv("HUNTER_API_KEY")),
+        "sendgrid": bool(os.getenv("SENDGRID_API_KEY")),
+        "linkedin": bool(os.getenv("LINKEDIN_ACCESS_TOKEN")),
+        "stability": bool(os.getenv("STABILITY_API_KEY")),
+        "openai": bool(os.getenv("OPENAI_API_KEY")),
+        "gemini": bool(os.getenv("GOOGLE_AI_API_KEY")),
+    }
+    try:
+        db.execute(text("SELECT 1"))
+        checks["database"] = True
+    except Exception:
+        checks["database"] = False
+
+    return {
+        "integrations": checks,
+        "ready": all(checks.values()),
+        "missing": [k for k, v in checks.items() if not v],
+    }

@@ -12,6 +12,7 @@ from anthropic import Anthropic
 
 from app.database import get_db
 from app.models import AgentSetting
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -132,6 +133,7 @@ Make it production-ready and detailed."""
 async def create_agent_from_generated(
     agent: GeneratedAgent,
     db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(get_current_user),
 ):
     """
     Create a new agent from generated configuration

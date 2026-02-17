@@ -30,7 +30,7 @@ from app.api.routes import (
     outreach,
     builder,
 )
-from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval
+from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval, costs
 
 logger = logging.getLogger(__name__)
 scheduler = AgentScheduler(poll_seconds=30)
@@ -96,7 +96,7 @@ app.include_router(
     agents.router, prefix="/api/v1/agents", tags=["Agents"]
 )
 app.include_router(
-    prospects.router, prefix="/api/v1/prospects", tags=["Prospects"], dependencies=[Depends(get_current_user)]
+    prospects.router, prefix="/api/v1/prospects", tags=["Prospects"]
 )
 app.include_router(
     clients.router, prefix="/api/v1/clients", tags=["Clients"]
@@ -117,7 +117,7 @@ app.include_router(
     builder.router, prefix="/api/v1/builder", tags=["Builder"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    workflows.router, prefix="/api/v1/workflows", tags=["Workflows"], dependencies=[Depends(get_current_user)]
+    workflows.router, prefix="/api/v1/workflows", tags=["Workflows"]
 )
 app.include_router(
     executions.router, prefix="/api/v1/executions", tags=["Executions"]
@@ -146,7 +146,11 @@ app.include_router(
     ai_builder.router,
     prefix="/api/v1/ai-builder",
     tags=["AI Builder"],
-    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    costs.router,
+    prefix="/api/v1/costs",
+    tags=["Costs"],
 )
 app.include_router(
     content_approval.router,
