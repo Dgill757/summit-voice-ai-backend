@@ -12,4 +12,5 @@ from . import (
     meetings,
     outreach,
     builder,
+    integrations,
 )

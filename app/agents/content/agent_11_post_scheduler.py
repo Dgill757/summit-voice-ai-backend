@@ -10,6 +10,7 @@ from datetime import datetime, time
 import httpx
 from app.agents.base import BaseAgent
 from app.models import ContentCalendar
+from app.integrations.linkedin_oauth import LinkedInOAuthService
 
 class PostSchedulerAgent(BaseAgent):
     """Schedules content publication"""
@@ -167,8 +168,17 @@ class PostSchedulerAgent(BaseAgent):
     
     async def _publish_to_linkedin(self, content: ContentCalendar) -> bool:
         """Publish to LinkedIn"""
-        
-        access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
+
+        access_token = None
+        try:
+            oauth = LinkedInOAuthService(self.db)
+            access_token = await oauth.get_valid_access_token()
+        except Exception:
+            access_token = None
+
+        # Fallback to static token for backward compatibility.
+        if not access_token:
+            access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
         person_urn = os.getenv("LINKEDIN_PERSON_URN")
         
         if not access_token or not person_urn:

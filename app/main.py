@@ -29,6 +29,7 @@ from app.api.routes import (
     meetings,
     outreach,
     builder,
+    integrations,
 )
 from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval, costs
 
@@ -115,6 +116,9 @@ app.include_router(
 )
 app.include_router(
     builder.router, prefix="/api/v1/builder", tags=["Builder"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    integrations.router, prefix="/api/v1/integrations", tags=["Integrations"]
 )
 app.include_router(
     workflows.router, prefix="/api/v1/workflows", tags=["Workflows"]
