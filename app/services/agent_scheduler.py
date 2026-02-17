@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Set
 
 from croniter import croniter
@@ -51,7 +51,7 @@ class AgentScheduler:
             await asyncio.sleep(self.poll_seconds)
 
     async def _tick(self) -> None:
-        now = datetime.utcnow()
+        now_utc = datetime.now(timezone.utc)
         db = SessionLocal()
         try:
             due_agents = (
@@ -68,12 +68,12 @@ class AgentScheduler:
                 if agent_id in self._running_agent_ids:
                     continue
 
-                should_run = setting.next_run_at is None or setting.next_run_at <= now
+                should_run = setting.next_run_at is None or setting.next_run_at <= now_utc
                 if not should_run:
                     continue
 
                 # Ensure next_run_at exists even if execution fails.
-                setting.next_run_at = self._compute_next_run(setting.schedule_cron, now)
+                setting.next_run_at = self._compute_next_run(setting.schedule_cron, now_utc)
                 db.commit()
 
                 self._running_agent_ids.add(agent_id)
@@ -101,7 +101,7 @@ class AgentScheduler:
             agent = agent_class(db=db)
             result = await agent.run()
 
-            setting.last_run_at = datetime.utcnow()
+            setting.last_run_at = datetime.now(timezone.utc)
             setting.next_run_at = self._compute_next_run(setting.schedule_cron, setting.last_run_at)
             db.commit()
 
@@ -149,4 +149,3 @@ class AgentScheduler:
         )
         db.add(log)
         db.commit()
-
