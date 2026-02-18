@@ -11,6 +11,7 @@ from datetime import datetime
 from app.agents.base import BaseAgent
 from app.models import Prospect
 from app.config import REVENUE_SPRINT_MODE
+from app.integrations.apollo import ApolloClient
 
 class LeadScraperAgent(BaseAgent):
     """Scrapes leads from Apollo and Google Maps"""
@@ -90,58 +91,37 @@ class LeadScraperAgent(BaseAgent):
         prospects = []
         
         try:
-            async with httpx.AsyncClient() as client:
-                # Apollo API endpoint for people/organizations search
-                url = "https://api.apollo.io/v1/mixed_people/search"
-                
-                headers = {
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-cache",
-                    "X-Api-Key": self.apollo_api_key
-                }
-                
-                # Search criteria for roofing/HVAC/plumbing companies
-                payload = {
-                    "q_organization_domains": "",
-                    "page": 1,
-                    "per_page": limit,
-                    "organization_locations": ["United States"],
-                    "organization_num_employees_ranges": ["1,10", "11,50", "51,200"],
-                    "person_titles": ["owner", "ceo", "president", "founder", "director"],
-                    "q_organization_keyword_tags": ["roofing", "hvac", "plumbing", "restoration"]
-                }
-                
-                response = await client.post(url, headers=headers, json=payload)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    for person in data.get('people', []):
-                        org = person.get('organization', {})
-                        
-                        # Extract prospect data
-                        prospect = {
-                            "company_name": org.get('name', ''),
-                            "contact_name": person.get('name', ''),
-                            "title": person.get('title', ''),
-                            "email": person.get('email', ''),
-                            "phone": org.get('phone', ''),
-                            "linkedin_url": person.get('linkedin_url', ''),
-                            "website": org.get('website_url', ''),
-                            "city": org.get('city', ''),
-                            "state": org.get('state', ''),
-                            "employee_count": org.get('estimated_num_employees', 0),
-                            "industry": self._detect_industry(org.get('keywords', [])),
-                            "source": "apollo"
-                        }
-                        
-                        if prospect["company_name"]:
-                            prospects.append(prospect)
+            client = ApolloClient(api_key=self.apollo_api_key)
+            try:
+                # Primary query: explicit roofing focus + owner-level titles in core states.
+                prospects = await client.search_people(
+                    titles=["Owner", "CEO", "President", "General Manager"],
+                    industries=["Construction", "Roofing"],
+                    locations=["Texas", "Florida", "California", "North Carolina", "Georgia", "Arizona", "Tennessee"],
+                    company_sizes=["11,50", "51,200"],
+                    limit=limit,
+                )
+
+                # Broader fallback if primary returns too few rows.
+                if len(prospects) < max(5, limit // 3):
+                    fallback = await client.search_people(
+                        titles=["Owner", "CEO", "President", "Founder"],
+                        industries=["Construction"],
+                        locations=["United States"],
+                        company_sizes=["1,10", "11,50", "51,200"],
+                        limit=limit,
+                    )
+                    prospects.extend(fallback)
+            finally:
+                await client.close()
                 
         except Exception as e:
             self._log("scrape_apollo", "error", f"Apollo scraping failed: {str(e)}")
         
-        return prospects
+        # Normalize source label to match existing dashboard filters.
+        for p in prospects:
+            p["source"] = "apollo"
+        return prospects[:limit]
     
     async def _scrape_google_maps(self, limit: int) -> List[Dict[str, Any]]:
         """Scrape leads from Google Maps API"""

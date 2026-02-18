@@ -18,6 +18,7 @@ class LeadEnricherAgent(BaseAgent):
     
     def __init__(self, db):
         super().__init__(agent_id=2, agent_name="Lead Enricher", db=db)
+        self.apollo_api_key = os.getenv("APOLLO_API_KEY")
         self.hunter_api_key = os.getenv("HUNTER_API_KEY")
         self.clearbit_api_key = os.getenv("CLEARBIT_API_KEY")
         self.rocketreach_api_key = os.getenv("ROCKETREACH_API_KEY")

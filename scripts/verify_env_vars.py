@@ -5,7 +5,9 @@ from pathlib import Path
 def find_env_vars():
     """Find all environment variables referenced in code."""
     env_vars = set()
-    for py_file in Path("app").rglob("*.py"):
+    repo_root = Path(__file__).resolve().parents[1]
+    app_root = repo_root / "app"
+    for py_file in app_root.rglob("*.py"):
         content = py_file.read_text(encoding="utf-8", errors="ignore")
         env_vars.update(re.findall(r'os\.getenv\(["\']([A-Z0-9_]+)["\']', content))
         env_vars.update(re.findall(r'os\.environ\[\s*["\']([A-Z0-9_]+)["\']\s*\]', content))
@@ -55,4 +57,3 @@ def verify_against_railway():
 
 if __name__ == "__main__":
     verify_against_railway()
-
