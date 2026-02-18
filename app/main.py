@@ -30,6 +30,7 @@ from app.api.routes import (
     outreach,
     builder,
     integrations,
+    n8n_import,
 )
 from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval, costs, metrics_ceo, stream
 
@@ -119,6 +120,9 @@ app.include_router(
 )
 app.include_router(
     integrations.router, prefix="/api/v1/integrations", tags=["Integrations"]
+)
+app.include_router(
+    n8n_import.router, prefix="/api/v1/n8n", tags=["N8N Import"]
 )
 app.include_router(
     workflows.router, prefix="/api/v1/workflows", tags=["Workflows"]
