@@ -8,7 +8,7 @@ from app.models import AgentSetting
 
 AGENT_SEED_DATA: list[dict[str, Any]] = [
     {"agent_id": 1, "agent_name": "Lead Scraper", "tier": "Revenue", "schedule_cron": "0 6 * * *", "description": "Finds roofing companies via Apollo and Google Maps"},
-    {"agent_id": 2, "agent_name": "Lead Enricher", "tier": "Revenue", "schedule_cron": "0 7 * * *", "description": "Enriches leads with Clearbit and Hunter data"},
+    {"agent_id": 2, "agent_name": "Lead Enricher", "tier": "Revenue", "schedule_cron": "0 8-18 * * 1-5", "description": "Enriches leads with Clearbit and Hunter data"},
     {"agent_id": 3, "agent_name": "Outreach Sender", "tier": "Revenue", "schedule_cron": "0 8,14 * * 1-5", "description": "Sends cold email campaigns and outreach sequences"},
     {"agent_id": 4, "agent_name": "Follow-Up Manager", "tier": "Revenue", "schedule_cron": "0 9,15 * * 1-5", "description": "Manages follow-up and nurture sequences"},
     {"agent_id": 5, "agent_name": "LinkedIn Prospector", "tier": "Revenue", "schedule_cron": "0 10 * * 1-5", "description": "Sources prospects from LinkedIn"},

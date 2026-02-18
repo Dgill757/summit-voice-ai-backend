@@ -10,54 +10,89 @@ from datetime import datetime, timedelta
 from anthropic import AsyncAnthropic
 from app.agents.base import BaseAgent
 from app.models import Prospect, OutreachSequence
+from app.integrations.email import EmailService
+from app.config import REVENUE_SPRINT_MODE
 
 class OutreachSequencerAgent(BaseAgent):
     """Creates personalized outreach sequences"""
     
     def __init__(self, db):
-        super().__init__(agent_id=3, agent_name="Outreach Sequencer", db=db)
+        super().__init__(agent_id=3, agent_name="Outreach Sender", db=db)
         self.anthropic = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.email_service = EmailService()
         
     async def execute(self) -> Dict[str, Any]:
         """Main execution logic"""
-        
-        # Get max daily outreach from config
         max_daily = self.config.get('max_daily', 200)
+        if REVENUE_SPRINT_MODE.get("enabled"):
+            max_daily = min(max_daily, REVENUE_SPRINT_MODE.get("daily_outreach_target", 50), REVENUE_SPRINT_MODE.get("sendgrid_daily_limit", 100))
         
         # Get qualified prospects who haven't been contacted yet
         prospects = self.db.query(Prospect).filter(
             Prospect.status == 'qualified',
             Prospect.email.isnot(None)
         ).limit(max_daily).all()
-        
-        sequences_created = 0
-        
+
+        emails_sent = 0
+
         for prospect in prospects:
             try:
-                # Generate personalized sequence
-                sequence = await self._generate_sequence(prospect)
-                
-                if sequence:
-                    # Create outreach records in database
-                    await self._create_sequence_records(prospect, sequence)
-                    
-                    # Update prospect status
-                    prospect.status = 'contacted'
-                    self.db.commit()
-                    
-                    sequences_created += 1
+                custom = prospect.custom_fields or {}
+                if custom.get("contacted_at"):
+                    continue
+
+                if os.getenv("DEMO_MODE", "").lower() == "true":
+                    custom["contacted_at"] = datetime.utcnow().isoformat()
+                    custom["outreach_channel"] = "email-demo"
+                    prospect.custom_fields = custom
+                    prospect.status = "contacted"
+                    emails_sent += 1
+                    continue
+
+                email_body = await self._generate_initial_email(prospect)
+                await self.email_service.send_email(
+                    to=prospect.email,
+                    subject=f"{prospect.contact_name or prospect.company_name}, I can help {prospect.company_name} capture more roofing leads",
+                    html_content=email_body.replace("\n", "<br/>"),
+                )
+
+                custom["contacted_at"] = datetime.utcnow().isoformat()
+                custom["outreach_channel"] = "email"
+                prospect.custom_fields = custom
+                prospect.status = "contacted"
+                emails_sent += 1
+                self.db.commit()
                     
             except Exception as e:
-                self._log("create_sequence", "error", f"Failed for {prospect.company_name}: {str(e)}")
+                self._log("send_outreach", "error", f"Failed for {prospect.company_name}: {str(e)}")
                 continue
-        
-        return {
-            "success": True,
-            "data": {
-                "prospects_processed": len(prospects),
-                "sequences_created": sequences_created
-            }
-        }
+
+        return {"success": True, "data": {"prospects_processed": len(prospects), "emails_sent": emails_sent, "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(emails_sent * 0.003, 4)}}
+
+    async def _generate_initial_email(self, prospect: Prospect) -> str:
+        prompt = f"""
+Generate a concise cold email under 100 words.
+Prospect: {prospect.contact_name or 'Owner'} at {prospect.company_name}
+Location: {prospect.city}, {prospect.state}
+Offer: AI voice system that helps roofing companies capture missed calls and book appointments.
+CTA: ask for a 15-minute call.
+Tone: conversational, not pushy.
+"""
+        try:
+            msg = await self.anthropic.messages.create(
+                model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"),
+                max_tokens=300,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return msg.content[0].text
+        except Exception:
+            name = prospect.contact_name or "there"
+            return (
+                f"Hi {name},\n\n"
+                f"I noticed {prospect.company_name} is growing in {prospect.city or 'your market'}. "
+                "We help roofing teams capture every inbound call and book more jobs with AI voice.\n\n"
+                "Open to a 15-minute walkthrough this week?\n\nDan"
+            )
     
     async def _generate_sequence(self, prospect: Prospect) -> List[Dict[str, Any]]:
         """Generate personalized 7-step outreach sequence using Claude"""

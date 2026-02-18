@@ -6,9 +6,11 @@ Target: 50+ new prospects daily
 from typing import Dict, Any, List
 import httpx
 import os
+import random
 from datetime import datetime
 from app.agents.base import BaseAgent
 from app.models import Prospect
+from app.config import REVENUE_SPRINT_MODE
 
 class LeadScraperAgent(BaseAgent):
     """Scrapes leads from Apollo and Google Maps"""
@@ -20,24 +22,24 @@ class LeadScraperAgent(BaseAgent):
         
     async def execute(self) -> Dict[str, Any]:
         """Main execution logic"""
-        
-        # Get daily target from config
         daily_target = self.config.get('daily_target', 50)
+        if REVENUE_SPRINT_MODE.get("enabled"):
+            daily_target = min(REVENUE_SPRINT_MODE.get("daily_lead_target", 100), REVENUE_SPRINT_MODE.get("apollo_daily_limit", 160))
         
         prospects_scraped = []
         
-        # Scrape from Apollo
-        apollo_prospects = await self._scrape_apollo(limit=daily_target // 2)
-        prospects_scraped.extend(apollo_prospects)
-        
-        # Scrape from Google Maps
-        gmaps_prospects = await self._scrape_google_maps(limit=daily_target // 2)
-        prospects_scraped.extend(gmaps_prospects)
+        if os.getenv("DEMO_MODE", "").lower() == "true":
+            prospects_scraped = self._generate_demo_prospects(count=max(50, daily_target))
+        else:
+            # Scrape from Apollo
+            apollo_prospects = await self._scrape_apollo(limit=daily_target // 2)
+            prospects_scraped.extend(apollo_prospects)
+
+            # Scrape from Google Maps
+            gmaps_prospects = await self._scrape_google_maps(limit=daily_target // 2)
+            prospects_scraped.extend(gmaps_prospects)
         
         # Save to database
-        if not prospects_scraped and os.getenv("DEMO_MODE", "").lower() == "true":
-            prospects_scraped = self._generate_demo_prospects(count=max(5, daily_target // 2))
-
         saved_count = await self._save_prospects(prospects_scraped)
         
         return {
@@ -45,29 +47,37 @@ class LeadScraperAgent(BaseAgent):
             "data": {
                 "prospects_found": len(prospects_scraped),
                 "prospects_saved": saved_count,
-                "sources": {
-                    "apollo": len(apollo_prospects),
-                    "google_maps": len(gmaps_prospects)
+                    "sources": {
+                        "apollo": len([p for p in prospects_scraped if p.get("source") == "apollo"]),
+                        "google_maps": len([p for p in prospects_scraped if p.get("source") == "google_maps"]),
+                        "demo": len([p for p in prospects_scraped if p.get("source") == "Demo Data"]),
+                    },
+                    "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(len(prospects_scraped) * 0.01, 4),
                 }
             }
-        }
 
     def _generate_demo_prospects(self, count: int = 10) -> List[Dict[str, Any]]:
-        """Generate deterministic demo leads when external APIs are unavailable."""
+        """Generate realistic demo leads for full pipeline testing."""
         demo: List[Dict[str, Any]] = []
+        states = ["TX", "FL", "CA", "NC", "GA", "AZ", "TN"]
+        cities = ["Austin", "Dallas", "Miami", "Orlando", "Phoenix", "Charlotte", "Nashville", "San Diego", "Tampa"]
+        titles = ["Owner", "CEO", "President", "General Manager"]
         for i in range(count):
+            state = random.choice(states)
+            city = random.choice(cities)
+            company = f"Elite Roofing {state} {i + 1}"
             demo.append(
                 {
-                    "company_name": f"Summit Roofing Demo {i + 1}",
-                    "contact_name": f"Owner {i + 1}",
-                    "title": "Owner",
-                    "email": f"demo.lead{i + 1}@example.com",
+                    "company_name": company,
+                    "contact_name": f"John Smith {i + 1}",
+                    "title": random.choice(titles),
+                    "email": f"owner{i + 1}@roofingcompany{i + 1}.com",
                     "phone": f"+1-555-010{i:02d}",
-                    "website": f"https://summit-demo-{i + 1}.com",
-                    "city": "Phoenix",
-                    "state": "AZ",
+                    "website": f"https://{company.lower().replace(' ', '')}.com",
+                    "city": city,
+                    "state": state,
                     "industry": "roofing",
-                    "source": "demo",
+                    "source": "Demo Data",
                 }
             )
         return demo

@@ -127,3 +127,16 @@ def get_settings() -> Settings:
 
 
 settings: Settings = get_settings()
+
+# Revenue sprint profile for first-revenue mode.
+REVENUE_SPRINT_MODE = {
+    "enabled": True,
+    "daily_lead_target": 100,
+    "daily_outreach_target": 50,
+    "daily_meeting_target": 3,
+    "max_daily_spend": 5.00,
+    "apollo_daily_limit": 160,
+    "hunter_daily_limit": 1,
+    "sendgrid_daily_limit": 100,
+    "anthropic_daily_budget": 1.50,
+}

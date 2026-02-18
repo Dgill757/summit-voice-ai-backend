@@ -27,6 +27,7 @@ from app.agents.client_success.agent_19_performance_reporter import PerformanceR
 from app.agents.client_success.agent_20_upsell_identifier import UpsellIdentifierAgent
 from app.agents.client_success.agent_21_churn_predictor import ChurnPredictorAgent
 from app.agents.operations.agent_22_daily_briefer import DailyBrieferAgent
+from app.agents.operations.agent_22_cost_monitor import CostMonitorAgent
 from app.agents.operations.agent_23_task_coordinator import TaskCoordinatorAgent
 from app.agents.operations.agent_24_anomaly_detector import AnomalyDetectorAgent
 from app.agents.operations.agent_25_cost_optimizer import CostOptimizerAgent
@@ -37,33 +38,33 @@ AGENT_CLASS_MAP: Dict[int, Type[BaseAgent]] = {
     1: LeadScraperAgent,
     2: LeadEnricherAgent,
     3: OutreachSequencerAgent,
-    4: ReplyMonitorAgent,
-    5: MeetingSchedulerAgent,
+    4: FollowupAgent,
+    5: ReplyMonitorAgent,
     6: FollowupAgent,
     7: PipelineManagerAgent,
-    8: ContentIdeaGeneratorAgent,
-    9: PostDrafterAgent,
-    10: MediaCreatorAgent,
-    11: PostSchedulerAgent,
-    12: EngagementMonitorAgent,
-    13: CommentResponderAgent,
-    14: OnboardingCoordinatorAgent,
-    15: GHLSetupAgent,
-    16: TrainingSchedulerAgent,
-    17: CheckinAgent,
-    18: SupportTicketHandlerAgent,
-    19: PerformanceReporterAgent,
-    20: UpsellIdentifierAgent,
-    21: ChurnPredictorAgent,
-    22: DailyBrieferAgent,
+    8: MeetingSchedulerAgent,
+    9: ContentIdeaGeneratorAgent,
+    10: PostDrafterAgent,
+    11: MediaCreatorAgent,
+    12: PostSchedulerAgent,
+    13: EngagementMonitorAgent,
+    14: CommentResponderAgent,
+    15: OnboardingCoordinatorAgent,
+    16: GHLSetupAgent,
+    17: TrainingSchedulerAgent,
+    18: CheckinAgent,
+    19: SupportTicketHandlerAgent,
+    20: PerformanceReporterAgent,
+    21: DailyBrieferAgent,
+    22: CostMonitorAgent,
     23: TaskCoordinatorAgent,
     24: AnomalyDetectorAgent,
     25: CostOptimizerAgent,
     26: SystemHealthMonitorAgent,
+    27: SystemHealthMonitorAgent,
 }
 
 
 def get_agent_class(agent_id: int) -> Type[BaseAgent] | None:
     """Return agent class by ID or None if not found."""
     return AGENT_CLASS_MAP.get(agent_id)
-

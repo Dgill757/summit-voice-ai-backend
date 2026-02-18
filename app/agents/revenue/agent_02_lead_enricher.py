@@ -27,6 +27,8 @@ class LeadEnricherAgent(BaseAgent):
         
         # Get batch size from config
         batch_size = self.config.get('batch_size', 10)
+        if os.getenv("DEMO_MODE", "").lower() == "true":
+            batch_size = max(batch_size, 25)
         
         # Get prospects that need enrichment (new status, no email)
         prospects = self.db.query(Prospect).filter(
@@ -38,6 +40,18 @@ class LeadEnricherAgent(BaseAgent):
         
         for prospect in prospects:
             try:
+                if os.getenv("DEMO_MODE", "").lower() == "true":
+                    if not prospect.phone:
+                        prospect.phone = f"+1-555-20{prospect.id.int % 100000:05d}" if hasattr(prospect.id, "int") else "+1-555-2000000"
+                    custom = prospect.custom_fields or {}
+                    custom["enrichment_source"] = "Demo"
+                    prospect.custom_fields = custom
+                    prospect.enriched_at = datetime.utcnow()
+                    prospect.status = "qualified"
+                    enriched_count += 1
+                    self.db.commit()
+                    continue
+
                 # Update status to enriching
                 prospect.status = 'enriching'
                 self.db.commit()
@@ -57,13 +71,7 @@ class LeadEnricherAgent(BaseAgent):
                 prospect.status = 'new'
                 self.db.commit()
         
-        return {
-            "success": True,
-            "data": {
-                "prospects_processed": len(prospects),
-                "prospects_enriched": enriched_count
-            }
-        }
+        return {"success": True, "data": {"prospects_processed": len(prospects), "prospects_enriched": enriched_count, "cost_usd": 0 if os.getenv('DEMO_MODE', '').lower() == 'true' else round(enriched_count * 0.02, 4)}}
     
     async def _enrich_prospect(self, prospect: Prospect) -> bool:
         """Enrich a single prospect with all available data"""

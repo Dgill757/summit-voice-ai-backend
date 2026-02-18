@@ -17,7 +17,7 @@ class ImageGenerator:
         self.anthropic = Anthropic(api_key=api_key) if api_key else None
         self.gemini_key = os.getenv("GOOGLE_AI_API_KEY")
         self.openai_key = os.getenv("OPENAI_API_KEY")
-        self.stability_key = os.getenv("STABILITY_API_KEY")
+        self.stability_key = os.getenv("STABILITY_API_KEY") or os.getenv("STABILITY_AI_API_KEY")
 
     async def generate_image(
         self,
@@ -199,4 +199,3 @@ Enhanced prompt:"""
                 image_base64 = base64.b64encode(image_bytes).decode()
                 return {"url": f"data:image/png;base64,{image_base64}", "format": "png"}
             raise Exception(f"Stability API error: {response.text}")
-

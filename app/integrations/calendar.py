@@ -11,9 +11,9 @@ class CalendarService:
     """Google Calendar integration."""
 
     def __init__(self):
-        self.client_id = os.getenv("GOOGLE_CLIENT_ID") or getattr(settings, "google_client_id", None)
-        self.client_secret = os.getenv("GOOGLE_CLIENT_SECRET") or getattr(settings, "google_client_secret", None)
-        self.refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN") or getattr(settings, "google_refresh_token", None)
+        self.client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID") or getattr(settings, "google_calendar_client_id", None)
+        self.client_secret = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET") or getattr(settings, "google_calendar_client_secret", None)
+        self.refresh_token = os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN") or getattr(settings, "google_calendar_refresh_token", None)
         self.timezone = os.getenv("GOOGLE_CALENDAR_TZ", "America/New_York")
         self._service = None
 
@@ -83,4 +83,3 @@ class CalendarService:
             slots.append(cursor)
             cursor += timedelta(hours=2)
         return slots
-

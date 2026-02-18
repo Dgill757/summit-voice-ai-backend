@@ -16,8 +16,8 @@ class GHLSetupAgent(BaseAgent):
     
     def __init__(self, db):
         super().__init__(agent_id=15, agent_name="GHL Setup Agent", db=db)
-        self.ghl_api_key = os.getenv("GHL_API_KEY")
-        self.ghl_location_id = os.getenv("GHL_LOCATION_ID")
+        self.ghl_api_key = os.getenv("GOHIGHLEVEL_API_KEY")
+        self.ghl_location_id = os.getenv("GOHIGHLEVEL_LOCATION_ID")
         
     async def execute(self) -> Dict[str, Any]:
         """Main execution logic - called manually for specific client"""
