@@ -59,7 +59,7 @@ class LeadScraperAgent(BaseAgent):
                     "sources": {
                         "apollo": len([p for p in prospects_scraped if p.get("source") == "apollo"]),
                         "google_maps": len([p for p in prospects_scraped if p.get("source") == "google_maps"]),
-                        "demo": len([p for p in prospects_scraped if p.get("source") == "Demo Data"]),
+                        "demo": len([p for p in prospects_scraped if p.get("custom_fields", {}).get("demo_lead") is True]),
                     },
                     "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(len(prospects_scraped) * 0.01, 4),
                 }
@@ -86,7 +86,8 @@ class LeadScraperAgent(BaseAgent):
                     "city": city,
                     "state": state,
                     "industry": "roofing",
-                    "source": "Demo Data",
+                    "source": "manual",
+                    "custom_fields": {"demo_lead": True},
                 }
             )
         return demo
@@ -241,6 +242,7 @@ class LeadScraperAgent(BaseAgent):
             self.db.commit()
         except Exception as e:
             self.db.rollback()
+            saved_count = 0
             self._log("save_prospects", "error", f"Database commit failed: {str(e)}")
         
         return saved_count
