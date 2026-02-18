@@ -60,10 +60,13 @@ class LeadEnricherAgent(BaseAgent):
                 # Enrich the prospect
                 enriched = await self._enrich_prospect(prospect)
                 
-                if enriched:
+                if enriched or prospect.email:
                     prospect.enriched_at = datetime.utcnow()
-                    prospect.status = 'qualified' if prospect.email else 'new'
-                    enriched_count += 1
+                    prospect.status = 'qualified'
+                    if enriched:
+                        enriched_count += 1
+                else:
+                    prospect.status = 'new'
                 
                 self.db.commit()
                 

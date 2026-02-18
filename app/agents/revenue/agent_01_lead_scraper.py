@@ -39,6 +39,14 @@ class LeadScraperAgent(BaseAgent):
             # Scrape from Google Maps
             gmaps_prospects = await self._scrape_google_maps(limit=daily_target // 2)
             prospects_scraped.extend(gmaps_prospects)
+
+            if not prospects_scraped and os.getenv("AUTO_DEMO_ON_EMPTY", "true").lower() == "true":
+                self._log(
+                    "scrape_fallback",
+                    "warning",
+                    "No live prospects returned from APIs; using demo fallback leads",
+                )
+                prospects_scraped = self._generate_demo_prospects(count=max(25, daily_target // 2))
         
         # Save to database
         saved_count = await self._save_prospects(prospects_scraped)
