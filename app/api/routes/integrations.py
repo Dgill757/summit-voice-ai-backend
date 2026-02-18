@@ -2,12 +2,39 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.core.security import get_current_user
 from app.database import get_db
 from app.integrations.linkedin_oauth import LinkedInOAuthService
+from app.integrations.content_generation import (
+    add_branding_to_video,
+    create_did_video,
+    create_heygen_video,
+    get_heygen_video_status,
+    post_to_all_platforms,
+)
 
 router = APIRouter()
+
+
+class GenerateVideoPayload(BaseModel):
+    script: str
+    provider: str = "heygen"
+    avatar_id: str | None = None
+    presenter_id: str | None = None
+
+
+class BrandVideoPayload(BaseModel):
+    video_url: str
+    branding: dict
+
+
+class PublishPayload(BaseModel):
+    body: str
+    media_urls: list[str] = []
+    scheduled_time: str | None = None
+    platforms: list[str] | None = None
 
 
 @router.get("/linkedin/authorize")
@@ -78,3 +105,55 @@ async def linkedin_status(db: Session = Depends(get_db)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+
+@router.post("/content/generate-video")
+async def generate_avatar_video(
+    payload: GenerateVideoPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Generate avatar video with HeyGen or D-ID."""
+    try:
+        provider = payload.provider.lower()
+        if provider == "heygen":
+            return await create_heygen_video(
+                payload.script, avatar_id=payload.avatar_id or "default"
+            )
+        if provider in {"did", "d-id"}:
+            return await create_did_video(
+                payload.script, presenter_id=payload.presenter_id or "amy-Aq6OmGZnMt"
+            )
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {payload.provider}")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {exc}")
+
+
+@router.get("/content/video-status/{video_id}")
+async def get_video_status(video_id: str):
+    try:
+        return await get_heygen_video_status(video_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Status lookup failed: {exc}")
+
+
+@router.post("/content/add-branding")
+async def brand_video(
+    payload: BrandVideoPayload,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        return await add_branding_to_video(payload.video_url, payload.branding)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Branding failed: {exc}")
+
+
+@router.post("/content/publish")
+async def publish_content(
+    payload: PublishPayload,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        return await post_to_all_platforms(payload.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Publish failed: {exc}")

@@ -36,9 +36,14 @@ async def check_integrations(db: Session = Depends(get_db)) -> dict:
         "apollo": bool(os.getenv("APOLLO_API_KEY")),
         "clearbit": bool(os.getenv("CLEARBIT_API_KEY")),
         "hunter": bool(os.getenv("HUNTER_API_KEY")),
+        "rocketreach": bool(os.getenv("ROCKETREACH_API_KEY")),
         "sendgrid": bool(os.getenv("SENDGRID_API_KEY")),
         "linkedin": bool(os.getenv("LINKEDIN_ACCESS_TOKEN")),
         "late": bool(os.getenv("LATE_API_KEY")),
+        "heygen": bool(os.getenv("HEYGEN_API_KEY")),
+        "did": bool(os.getenv("DID_API_KEY")),
+        "shotstack": bool(os.getenv("SHOTSTACK_API_KEY")),
+        "google_calendar": bool(os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN")),
         "stability": bool(os.getenv("STABILITY_API_KEY")),
         "openai": bool(os.getenv("OPENAI_API_KEY")),
         "gemini": bool(os.getenv("GOOGLE_AI_API_KEY")),
@@ -54,3 +59,9 @@ async def check_integrations(db: Session = Depends(get_db)) -> dict:
         "ready": all(checks.values()),
         "missing": [k for k, v in checks.items() if not v],
     }
+
+
+@router.get("/health/integrations")
+async def check_integrations_alias(db: Session = Depends(get_db)) -> dict:
+    """Alias endpoint to match /api/v1/health/integrations contract."""
+    return await check_integrations(db)

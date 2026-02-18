@@ -7,8 +7,11 @@ from typing import Dict, Any, Optional
 import httpx
 import os
 from datetime import datetime
+import logging
 from app.agents.base import BaseAgent
 from app.models import Prospect
+
+logger = logging.getLogger(__name__)
 
 class LeadEnricherAgent(BaseAgent):
     """Enriches prospect data with additional information"""
@@ -65,7 +68,20 @@ class LeadEnricherAgent(BaseAgent):
     async def _enrich_prospect(self, prospect: Prospect) -> bool:
         """Enrich a single prospect with all available data"""
         enriched = False
-        
+
+        # Waterfall enrichment by email when available.
+        if prospect.email:
+            waterfall = await self.enrich_lead_waterfall(prospect.email, {"company_name": prospect.company_name})
+            if waterfall and not waterfall.get("enrichment_failed"):
+                if waterfall.get("email") and not prospect.email:
+                    prospect.email = waterfall.get("email")
+                if waterfall.get("phone") and not prospect.phone:
+                    prospect.phone = waterfall.get("phone")
+                custom = prospect.custom_fields or {}
+                custom["enrichment_source"] = waterfall.get("source")
+                prospect.custom_fields = custom
+                enriched = True
+
         # Find email if missing
         if not prospect.email:
             email = await self._find_email(prospect)
@@ -226,3 +242,63 @@ class LeadEnricherAgent(BaseAgent):
             score += 10
         
         return min(score, 100)
+
+    async def enrich_lead_waterfall(self, lead_email: str, lead_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Try enrichment providers in sequence until success."""
+        if self.apollo_api_key:
+            try:
+                enriched = await self.enrich_with_apollo(lead_email)
+                if enriched.get("email") and enriched.get("phone"):
+                    enriched["source"] = "Apollo"
+                    return enriched
+            except Exception as exc:
+                logger.warning("Apollo enrichment failed: %s", exc)
+
+        if self.hunter_api_key:
+            try:
+                enriched = await self.enrich_with_hunter(lead_email)
+                if enriched.get("email"):
+                    enriched["source"] = "Hunter"
+                    return enriched
+            except Exception as exc:
+                logger.warning("Hunter enrichment failed: %s", exc)
+
+        if self.rocketreach_api_key:
+            try:
+                enriched = await self.enrich_with_rocketreach(lead_email)
+                if enriched.get("email") or enriched.get("phone"):
+                    enriched["source"] = "RocketReach"
+                    return enriched
+            except Exception as exc:
+                logger.warning("RocketReach enrichment failed: %s", exc)
+
+        return {"email": lead_email, "source": "None", "enrichment_failed": True, **lead_data}
+
+    async def enrich_with_apollo(self, email: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.apollo.io/v1/people/match",
+                headers={"X-Api-Key": self.apollo_api_key or ""},
+                json={"email": email},
+            )
+            response.raise_for_status()
+            return response.json().get("person", {}) or {}
+
+    async def enrich_with_hunter(self, email: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                "https://api.hunter.io/v2/email-verifier",
+                params={"email": email, "api_key": self.hunter_api_key or ""},
+            )
+            response.raise_for_status()
+            return response.json().get("data", {}) or {}
+
+    async def enrich_with_rocketreach(self, email: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.rocketreach.co/v2/api/lookupProfile",
+                headers={"Api-Key": self.rocketreach_api_key or ""},
+                json={"email": email},
+            )
+            response.raise_for_status()
+            return response.json() or {}

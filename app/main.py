@@ -31,7 +31,7 @@ from app.api.routes import (
     builder,
     integrations,
 )
-from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval, costs
+from app.api.v1 import workflows, executions, leads, metrics, users, subscriptions, dashboard as dashboard_v1, ai_builder, content_approval, costs, metrics_ceo, stream
 
 logger = logging.getLogger(__name__)
 scheduler = AgentScheduler(poll_seconds=30)
@@ -155,6 +155,16 @@ app.include_router(
     costs.router,
     prefix="/api/v1/costs",
     tags=["Costs"],
+)
+app.include_router(
+    metrics_ceo.router,
+    prefix="/api/v1/metrics-ceo",
+    tags=["CEO Metrics"],
+)
+app.include_router(
+    stream.router,
+    prefix="/api/v1/stream",
+    tags=["Stream"],
 )
 app.include_router(
     content_approval.router,
