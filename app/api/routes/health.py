@@ -38,6 +38,7 @@ async def check_integrations(db: Session = Depends(get_db)) -> dict:
         "hunter": bool(os.getenv("HUNTER_API_KEY")),
         "sendgrid": bool(os.getenv("SENDGRID_API_KEY")),
         "linkedin": bool(os.getenv("LINKEDIN_ACCESS_TOKEN")),
+        "late": bool(os.getenv("LATE_API_KEY")),
         "stability": bool(os.getenv("STABILITY_API_KEY")),
         "openai": bool(os.getenv("OPENAI_API_KEY")),
         "gemini": bool(os.getenv("GOOGLE_AI_API_KEY")),

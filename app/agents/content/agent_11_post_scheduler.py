@@ -5,18 +5,21 @@ Integrates with social media APIs
 Runs daily at 6 AM
 """
 from typing import Dict, Any
-import os
 from datetime import datetime, time
-import httpx
 from app.agents.base import BaseAgent
 from app.models import ContentCalendar
-from app.integrations.linkedin_oauth import LinkedInOAuthService
+from app.integrations.late import LateClient
 
 class PostSchedulerAgent(BaseAgent):
     """Schedules content publication"""
     
     def __init__(self, db):
         super().__init__(agent_id=11, agent_name="Post Scheduler", db=db)
+        self.late_client = None
+        try:
+            self.late_client = LateClient()
+        except Exception:
+            self.late_client = None
         
     async def execute(self) -> Dict[str, Any]:
         """Main execution logic"""
@@ -87,6 +90,10 @@ class PostSchedulerAgent(BaseAgent):
             'twitter': {
                 'weekday': [time(9, 0), time(12, 0), time(18, 0)],
                 'weekend': [time(11, 0)]
+            },
+            'tiktok': {
+                'weekday': [time(10, 0), time(14, 0), time(20, 0)],
+                'weekend': [time(11, 0), time(17, 0)],
             }
         }
         
@@ -149,95 +156,29 @@ class PostSchedulerAgent(BaseAgent):
         return published_count
     
     async def _publish_to_platform(self, content: ContentCalendar) -> bool:
-        """Publish content to social media platform"""
-        
-        platform = content.platform
-        
-        # Platform-specific publishing
-        if platform == 'linkedin':
-            return await self._publish_to_linkedin(content)
-        elif platform == 'facebook':
-            return await self._publish_to_facebook(content)
-        elif platform == 'instagram':
-            return await self._publish_to_instagram(content)
-        elif platform == 'twitter':
-            return await self._publish_to_twitter(content)
-        else:
-            self._log("publish", "warning", f"Platform {platform} not yet implemented")
+        """Publish content through LATE unified API."""
+        platform = (content.platform or "").lower()
+        if platform not in {"linkedin", "twitter", "facebook", "instagram", "tiktok"}:
+            self._log("publish", "warning", f"Platform {platform} not supported by scheduler")
             return False
-    
-    async def _publish_to_linkedin(self, content: ContentCalendar) -> bool:
-        """Publish to LinkedIn"""
 
-        access_token = None
-        try:
-            oauth = LinkedInOAuthService(self.db)
-            access_token = await oauth.get_valid_access_token()
-        except Exception:
-            access_token = None
-
-        # Fallback to static token for backward compatibility.
-        if not access_token:
-            access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
-        person_urn = os.getenv("LINKEDIN_PERSON_URN")
-        
-        if not access_token or not person_urn:
-            self._log("publish_linkedin", "warning", "LinkedIn credentials not configured")
+        if self.late_client is None:
+            self._log("publish_late", "warning", "LATE_API_KEY not configured")
             return False
-        
+
         try:
-            async with httpx.AsyncClient() as client:
-                url = "https://api.linkedin.com/v2/ugcPosts"
-                
-                headers = {
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json",
-                    "X-Restli-Protocol-Version": "2.0.0"
-                }
-                
-                payload = {
-                    "author": person_urn,
-                    "lifecycleState": "PUBLISHED",
-                    "specificContent": {
-                        "com.linkedin.ugc.ShareContent": {
-                            "shareCommentary": {
-                                "text": content.content_body
-                            },
-                            "shareMediaCategory": "NONE"
-                        }
-                    },
-                    "visibility": {
-                        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-                    }
-                }
-                
-                response = await client.post(url, headers=headers, json=payload)
-                
-                if response.status_code == 201:
-                    self._log("publish_linkedin", "success", f"Published: {content.title}")
-                    return True
-                else:
-                    self._log("publish_linkedin", "error", f"Failed: {response.text}")
-                    return False
-                    
+            result = await self.late_client.publish(
+                platform=platform,
+                text=content.content_body or "",
+                media_url=content.media_url,
+                metadata={"content_id": str(content.id), "title": content.title},
+            )
+            meta = content.meta or {}
+            meta["late_post_id"] = result.get("id")
+            meta["late_platform"] = platform
+            content.meta = meta
+            self._log("publish_late", "success", f"Published {content.title} via LATE", metadata={"platform": platform, "late_post_id": result.get("id")})
+            return True
         except Exception as e:
-            self._log("publish_linkedin", "error", f"Exception: {str(e)}")
+            self._log("publish_late", "error", f"Failed publishing via LATE: {str(e)}")
             return False
-    
-    async def _publish_to_facebook(self, content: ContentCalendar) -> bool:
-        """Publish to Facebook"""
-        # Similar implementation for Facebook Graph API
-        self._log("publish_facebook", "info", "Facebook publishing not yet implemented")
-        return False
-    
-    async def _publish_to_instagram(self, content: ContentCalendar) -> bool:
-        """Publish to Instagram"""
-        # Similar implementation for Instagram Graph API
-        self._log("publish_instagram", "info", "Instagram publishing not yet implemented")
-        return False
-    
-    async def _publish_to_twitter(self, content: ContentCalendar) -> bool:
-        """Publish to Twitter"""
-        # Similar implementation for Twitter API v2
-        self._log("publish_twitter", "info", "Twitter publishing not yet implemented")
-        return False

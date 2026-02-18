@@ -6,6 +6,7 @@ from .email import EmailService
 from .sms import SMSService
 from .calendar import CalendarService
 from .meta import MetaMessagingService
+from .late import LateClient
 
 __all__ = [
     "ApolloClient",
@@ -14,5 +15,5 @@ __all__ = [
     "SMSService",
     "CalendarService",
     "MetaMessagingService",
+    "LateClient",
 ]
-
