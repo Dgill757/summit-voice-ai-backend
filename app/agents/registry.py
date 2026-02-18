@@ -32,6 +32,7 @@ from app.agents.operations.agent_23_task_coordinator import TaskCoordinatorAgent
 from app.agents.operations.agent_24_anomaly_detector import AnomalyDetectorAgent
 from app.agents.operations.agent_25_cost_optimizer import CostOptimizerAgent
 from app.agents.operations.agent_26_system_health_monitor import SystemHealthMonitorAgent
+from app.agents.operations.agent_28_ghl_sync import GHLSyncAgent
 
 
 AGENT_CLASS_MAP: Dict[int, Type[BaseAgent]] = {
@@ -62,6 +63,7 @@ AGENT_CLASS_MAP: Dict[int, Type[BaseAgent]] = {
     25: CostOptimizerAgent,
     26: SystemHealthMonitorAgent,
     27: SystemHealthMonitorAgent,
+    28: GHLSyncAgent,
 }
 
 

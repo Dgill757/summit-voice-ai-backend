@@ -9,9 +9,11 @@ import os
 from datetime import datetime, timedelta
 from anthropic import AsyncAnthropic
 from app.agents.base import BaseAgent
-from app.models import Prospect, OutreachSequence
+from app.models import Prospect, OutreachSequence, OutreachQueue
 from app.integrations.email import EmailService
+from app.integrations.gohighlevel import ghl_sync
 from app.config import REVENUE_SPRINT_MODE
+from app.prompts.outreach_templates import generate_hormozi_style_email
 
 class OutreachSequencerAgent(BaseAgent):
     """Creates personalized outreach sequences"""
@@ -49,11 +51,39 @@ class OutreachSequencerAgent(BaseAgent):
                     emails_sent += 1
                     continue
 
-                email_body = await self._generate_initial_email(prospect)
+                email_body = await generate_hormozi_style_email({
+                    "contact_name": prospect.contact_name,
+                    "company_name": prospect.company_name,
+                    "city": prospect.city,
+                    "state": prospect.state,
+                    "title": prospect.title,
+                })
+                first_name = (prospect.contact_name or prospect.company_name or "there").split()[0]
+                subject = f"{first_name}, 30 roofing appointments guaranteed"
+
+                require_approval = os.getenv("OUTREACH_REQUIRE_APPROVAL", "true").lower() == "true"
+                if require_approval:
+                    queued_count = self.db.query(OutreachQueue).filter(
+                        OutreachQueue.status == "pending_approval"
+                    ).count()
+                    if queued_count < 10:
+                        self.db.add(
+                            OutreachQueue(
+                                prospect_id=prospect.id,
+                                subject=subject,
+                                body=email_body,
+                                status="pending_approval",
+                            )
+                        )
+                        self.db.commit()
+                        continue
+
                 await self.email_service.send_email(
                     to=prospect.email,
-                    subject=f"{prospect.contact_name or prospect.company_name}, I can help {prospect.company_name} capture more roofing leads",
+                    subject=subject,
                     html_content=email_body.replace("\n", "<br/>"),
+                    from_email="dan@summitvoiceai.com",
+                    from_name="Dan - Summit Voice AI",
                 )
 
                 custom["contacted_at"] = datetime.utcnow().isoformat()
@@ -62,6 +92,12 @@ class OutreachSequencerAgent(BaseAgent):
                 prospect.status = "contacted"
                 emails_sent += 1
                 self.db.commit()
+                ghl_contact_id = (prospect.custom_fields or {}).get("ghl_contact_id")
+                await ghl_sync.update_ghl_contact_status(
+                    ghl_contact_id=ghl_contact_id,
+                    status="contacted",
+                    notes=f"Cold email sent at {datetime.utcnow().isoformat()}",
+                )
                     
             except Exception as e:
                 self._log("send_outreach", "error", f"Failed for {prospect.company_name}: {str(e)}")

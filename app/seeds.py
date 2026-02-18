@@ -34,6 +34,7 @@ AGENT_SEED_DATA: list[dict[str, Any]] = [
     {"agent_id": 25, "agent_name": "Performance Optimizer", "tier": "Operations", "schedule_cron": "0 3 * * 0", "description": "Optimizes pipelines and execution performance"},
     {"agent_id": 26, "agent_name": "Compliance Checker", "tier": "Operations", "schedule_cron": "0 4 * * 0", "description": "Ensures policy and best-practice compliance"},
     {"agent_id": 27, "agent_name": "System Health Monitor", "tier": "Operations", "schedule_cron": "0 5 * * *", "description": "Monitors overall system health and uptime"},
+    {"agent_id": 28, "agent_name": "GoHighLevel Sync", "tier": "Operations", "schedule_cron": "0 */4 * * *", "description": "Bidirectional sync with GoHighLevel CRM", "default_enabled": True},
 ]
 
 
@@ -49,7 +50,7 @@ def seed_agents(db: Session) -> int:
                     agent_id=item["agent_id"],
                     agent_name=item["agent_name"],
                     tier=item["tier"],
-                    is_enabled=False,
+                    is_enabled=bool(item.get("default_enabled", False)),
                     schedule_cron=item["schedule_cron"],
                     config=cfg,
                 )

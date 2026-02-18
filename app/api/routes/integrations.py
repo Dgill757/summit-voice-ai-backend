@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.core.security import get_current_user
 from app.database import get_db
 from app.integrations.linkedin_oauth import LinkedInOAuthService
+from app.integrations.gohighlevel import ghl_sync
 from app.integrations.content_generation import (
     add_branding_to_video,
     create_did_video,
@@ -157,3 +158,10 @@ async def publish_content(
         return await post_to_all_platforms(payload.model_dump())
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Publish failed: {exc}")
+
+
+@router.post("/ghl/sync")
+async def sync_gohighlevel(db: Session = Depends(get_db)):
+    """Manual GHL bidirectional sync."""
+    result = await ghl_sync.sync_from_ghl(db)
+    return result

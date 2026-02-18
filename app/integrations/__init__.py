@@ -7,6 +7,7 @@ from .sms import SMSService
 from .calendar import CalendarService
 from .meta import MetaMessagingService
 from .late import LateClient
+from .gohighlevel import GoHighLevelSync, ghl_sync
 
 __all__ = [
     "ApolloClient",
@@ -16,4 +17,6 @@ __all__ = [
     "CalendarService",
     "MetaMessagingService",
     "LateClient",
+    "GoHighLevelSync",
+    "ghl_sync",
 ]

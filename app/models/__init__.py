@@ -69,6 +69,18 @@ class OutreachSequence(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class OutreachQueue(Base):
+    __tablename__ = "outreach_queue"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    prospect_id = Column(UUID(as_uuid=True), ForeignKey("prospects.id", ondelete="CASCADE"), nullable=False)
+    subject = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(Text, default="pending_approval")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    sent_at = Column(DateTime(timezone=True))
+
+
 class Meeting(Base):
     __tablename__ = "meetings"
 

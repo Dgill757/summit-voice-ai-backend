@@ -11,6 +11,7 @@ from datetime import datetime
 from app.agents.base import BaseAgent
 from app.models import Prospect, OutreachSequence, Meeting
 from app.integrations.calendar import CalendarService
+from app.integrations.gohighlevel import ghl_sync
 
 
 class MeetingSchedulerAgent(BaseAgent):
@@ -87,6 +88,12 @@ class MeetingSchedulerAgent(BaseAgent):
                         prospect.status = "meeting_booked"
                         prospect.lead_score = 100
                         self.db.commit()
+                        ghl_contact_id = (prospect.custom_fields or {}).get("ghl_contact_id")
+                        await ghl_sync.update_ghl_contact_status(
+                            ghl_contact_id=ghl_contact_id,
+                            status="meeting_booked",
+                            notes=f"Meeting booked at {datetime.utcnow().isoformat()}",
+                        )
                         meetings_booked += 1
 
             except Exception as e:

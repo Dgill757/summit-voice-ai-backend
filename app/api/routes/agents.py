@@ -12,7 +12,6 @@ from app.models import AgentSetting, AgentLog
 from app.agents.registry import get_agent_class
 from app.websockets.connection_manager import manager
 from app.seeds import seed_agents
-from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -120,7 +119,6 @@ async def get_agent(agent_id: int, db: Session = Depends(get_db)) -> Dict[str, A
 async def run_agent_now(
     agent_id: int,
     db: Session = Depends(get_db),
-    user: Dict[str, Any] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Execute an agent immediately."""
     setting = db.query(AgentSetting).filter(AgentSetting.agent_id == agent_id).first()
@@ -177,7 +175,6 @@ async def run_agent_now(
 async def enable_agent(
     agent_id: int,
     db: Session = Depends(get_db),
-    user: Dict[str, Any] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Enable an agent."""
     setting = db.query(AgentSetting).filter(AgentSetting.agent_id == agent_id).first()
@@ -192,7 +189,6 @@ async def enable_agent(
 async def disable_agent(
     agent_id: int,
     db: Session = Depends(get_db),
-    user: Dict[str, Any] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Disable an agent."""
     setting = db.query(AgentSetting).filter(AgentSetting.agent_id == agent_id).first()

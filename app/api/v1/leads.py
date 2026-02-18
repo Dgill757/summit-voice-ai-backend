@@ -5,8 +5,8 @@ import io
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -127,17 +127,15 @@ async def create_lead(
     return serialize_lead(lead)
 
 
-class LeadImportPayload(BaseModel):
-    csv_data: str
-
-
 @router.post("/import")
 async def import_leads(
-    payload: LeadImportPayload,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: dict[str, Any] = Depends(get_current_user),
 ):
-    reader = csv.DictReader(io.StringIO(payload.csv_data))
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    content = (await file.read()).decode("utf-8")
+    reader = csv.DictReader(io.StringIO(content))
     imported = 0
     skipped = 0
     for row in reader:
@@ -166,8 +164,20 @@ async def import_leads(
 
 
 @router.get("/export")
-async def export_leads(db: Session = Depends(get_db)):
-    leads = db.query(Prospect).order_by(Prospect.created_at.desc()).all()
+async def export_leads(
+    db: Session = Depends(get_db),
+    status: Optional[str] = None,
+    enriched_only: bool = False,
+    contacted_only: bool = False,
+):
+    query = db.query(Prospect)
+    if status:
+        query = query.filter(Prospect.status == status)
+    if enriched_only:
+        query = query.filter(Prospect.phone.isnot(None))
+    if contacted_only:
+        query = query.filter(Prospect.status.in_(["contacted", "interested", "meeting_booked", "client"]))
+    leads = query.order_by(Prospect.created_at.desc()).limit(10000).all()
     output = io.StringIO()
     writer = csv.DictWriter(
         output,
@@ -203,10 +213,11 @@ async def export_leads(db: Session = Depends(get_db)):
             }
         )
     output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
+    filename = f"leads_export_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    return Response(
+        content=output.getvalue(),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=leads.csv"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

@@ -112,10 +112,10 @@ app.include_router(
     meetings.router, prefix="/api/v1/meetings", tags=["Meetings"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    outreach.router, prefix="/api/v1/outreach", tags=["Outreach"], dependencies=[Depends(get_current_user)]
+    outreach.router, prefix="/api/v1/outreach", tags=["Outreach"]
 )
 app.include_router(
-    builder.router, prefix="/api/v1/builder", tags=["Builder"], dependencies=[Depends(get_current_user)]
+    builder.router, prefix="/api/v1/builder", tags=["Builder"]
 )
 app.include_router(
     integrations.router, prefix="/api/v1/integrations", tags=["Integrations"]
