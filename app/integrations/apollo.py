@@ -11,7 +11,7 @@ from app.config import settings
 class ApolloClient:
     """Apollo.io API client for lead scraping/enrichment."""
 
-    BASE_URL = "https://api.apollo.io/v1"
+    BASE_URL = "https://api.apollo.io/api/v1"
 
     def __init__(self, api_key: Optional[str] = None):
         key = api_key or os.getenv("APOLLO_API_KEY") or getattr(settings, "apollo_api_key", None)
@@ -33,7 +33,7 @@ class ApolloClient:
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
         payload = {
-            "q_organization_industries": industries or [],
+            "q_organization_keyword_tags": industries or [],
             "person_titles": titles or [],
             "person_locations": locations or [],
             "organization_num_employees_ranges": company_sizes or [],
@@ -89,4 +89,3 @@ class ApolloClient:
 
     async def close(self):
         await self.client.aclose()
-
