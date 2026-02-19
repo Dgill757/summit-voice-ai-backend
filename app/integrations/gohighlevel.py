@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -95,7 +96,7 @@ class GoHighLevelSync:
                     INSERT INTO prospects (
                         company_name, contact_name, email, phone, source, custom_fields, created_at
                     ) VALUES (
-                        :company_name, :contact_name, :email, :phone, :source, :custom_fields, NOW()
+                        :company_name, :contact_name, :email, :phone, :source, CAST(:custom_fields AS jsonb), NOW()
                     )
                     """
                 ),
@@ -105,7 +106,7 @@ class GoHighLevelSync:
                     "email": email,
                     "phone": contact.get("phone"),
                     "source": "GoHighLevel Import",
-                    "custom_fields": {"ghl_contact_id": contact.get("id")},
+                    "custom_fields": json.dumps({"ghl_contact_id": contact.get("id")}),
                 },
             )
             imported += 1
@@ -149,4 +150,3 @@ class GoHighLevelSync:
 
 
 ghl_sync = GoHighLevelSync()
-

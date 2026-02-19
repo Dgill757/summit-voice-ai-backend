@@ -79,9 +79,11 @@ class LeadScraperAgent(BaseAgent):
                 },
             }
 
+        self._log("scrape_apollo", "info", f"Finished API fetch. Total leads returned={len(all_leads)}")
         saved_count = await self._save_prospects(all_leads)
+        self._log("scrape_apollo", "info", f"Database save complete. Saved={saved_count}")
         return {
-            "success": True,
+            "success": saved_count > 0,
             "data": {
                 "prospects_found": len(all_leads),
                 "prospects_saved": saved_count,

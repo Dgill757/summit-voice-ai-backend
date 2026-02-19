@@ -124,8 +124,6 @@ async def run_agent_now(
     setting = db.query(AgentSetting).filter(AgentSetting.agent_id == agent_id).first()
     if not setting:
         raise HTTPException(status_code=404, detail="Agent not found")
-    if not setting.is_enabled:
-        raise HTTPException(status_code=400, detail="Agent is disabled")
 
     agent_class = get_agent_class(agent_id)
     if agent_class is None:

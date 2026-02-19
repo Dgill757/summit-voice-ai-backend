@@ -11,6 +11,7 @@ from . import (
     analytics,
     meetings,
     outreach,
+    inbox,
     builder,
     integrations,
     n8n_import,

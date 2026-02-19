@@ -28,6 +28,7 @@ from app.api.routes import (
     analytics,
     meetings,
     outreach,
+    inbox,
     builder,
     integrations,
     n8n_import,
@@ -114,6 +115,9 @@ app.include_router(
 )
 app.include_router(
     outreach.router, prefix="/api/v1/outreach", tags=["Outreach"]
+)
+app.include_router(
+    inbox.router, prefix="/api/v1/inbox", tags=["Inbox"]
 )
 app.include_router(
     builder.router, prefix="/api/v1/builder", tags=["Builder"]
