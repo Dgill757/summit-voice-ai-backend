@@ -1,3 +1,3 @@
 """API v1 compatibility package."""
 
-from . import agents, workflows, executions, leads, content, metrics, users, subscriptions, builder, dashboard, ai_builder, content_approval, clients, costs, metrics_ceo, stream
+from . import agents, workflows, executions, leads, content, metrics, users, subscriptions, builder, dashboard, ai_builder, content_approval, clients, costs, metrics_ceo, stream, monitoring

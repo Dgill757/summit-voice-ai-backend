@@ -13,7 +13,7 @@ from app.models import Prospect, OutreachSequence, OutreachQueue
 from app.integrations.email import EmailService
 from app.integrations.gohighlevel import ghl_sync
 from app.config import REVENUE_SPRINT_MODE
-from app.prompts.outreach_templates import generate_hormozi_style_email
+from app.prompts.outreach_templates import generate_outreach_email
 
 class OutreachSequencerAgent(BaseAgent):
     """Creates personalized outreach sequences"""
@@ -29,10 +29,14 @@ class OutreachSequencerAgent(BaseAgent):
         if REVENUE_SPRINT_MODE.get("enabled"):
             max_daily = min(max_daily, REVENUE_SPRINT_MODE.get("daily_outreach_target", 50), REVENUE_SPRINT_MODE.get("sendgrid_daily_limit", 100))
         
+        require_approval = os.getenv("OUTREACH_REQUIRE_APPROVAL", "true").lower() == "true"
+
         # Get qualified prospects who haven't been contacted yet
         prospects = self.db.query(Prospect).filter(
             Prospect.status == 'qualified',
-            Prospect.email.isnot(None)
+            Prospect.email.isnot(None),
+            Prospect.phone.isnot(None),
+            Prospect.source == "Apollo",
         ).limit(max_daily).all()
 
         emails_sent = 0
@@ -44,25 +48,16 @@ class OutreachSequencerAgent(BaseAgent):
                 if custom.get("contacted_at"):
                     continue
 
-                if os.getenv("DEMO_MODE", "").lower() == "true":
-                    custom["contacted_at"] = datetime.utcnow().isoformat()
-                    custom["outreach_channel"] = "email-demo"
-                    prospect.custom_fields = custom
-                    prospect.status = "contacted"
-                    emails_sent += 1
-                    continue
-
-                email_body = await generate_hormozi_style_email({
-                    "contact_name": prospect.contact_name,
-                    "company_name": prospect.company_name,
+                email_data = await generate_outreach_email({
+                    "name": prospect.contact_name,
+                    "company": prospect.company_name,
                     "city": prospect.city,
                     "state": prospect.state,
                     "title": prospect.title,
                 })
-                first_name = (prospect.contact_name or prospect.company_name or "there").split()[0]
-                subject = f"{first_name}, 30 roofing appointments guaranteed"
+                subject = email_data["subject"]
+                email_body = email_data["body"]
 
-                require_approval = os.getenv("OUTREACH_REQUIRE_APPROVAL", "true").lower() == "true"
                 if require_approval:
                     queued_count = self.db.query(OutreachQueue).filter(
                         OutreachQueue.status == "pending_approval"
@@ -111,8 +106,8 @@ class OutreachSequencerAgent(BaseAgent):
                 "prospects_processed": len(prospects),
                 "emails_sent": emails_sent,
                 "queued_for_approval": queued_for_approval,
-                "approval_mode": os.getenv("OUTREACH_REQUIRE_APPROVAL", "true").lower() == "true",
-                "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(emails_sent * 0.003, 4),
+                "approval_mode": require_approval,
+                "cost_usd": round(emails_sent * 0.003, 4),
             },
         }
 
