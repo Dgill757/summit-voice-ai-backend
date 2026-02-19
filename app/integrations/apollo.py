@@ -11,7 +11,7 @@ from app.config import settings
 class ApolloClient:
     """Apollo.io API client for lead scraping/enrichment."""
 
-    BASE_URL = "https://api.apollo.io/api/v1"
+    BASE_URL = "https://api.apollo.io"
 
     def __init__(self, api_key: Optional[str] = None):
         key = api_key or os.getenv("APOLLO_API_KEY") or getattr(settings, "apollo_api_key", None)
@@ -40,10 +40,18 @@ class ApolloClient:
             "page": 1,
             "per_page": limit,
         }
-        response = await self.client.post("/mixed_people/search", json=payload)
-        response.raise_for_status()
-        data = response.json()
-        return self._normalize_leads(data.get("people", []))
+        # Apollo has used both /v1 and /api/v1 variants across clients.
+        # Try primary endpoint first, then fallback to avoid silent lead starvation.
+        errors: list[str] = []
+        for path in ("/v1/mixed_people/search", "/api/v1/mixed_people/search"):
+            try:
+                response = await self.client.post(path, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return self._normalize_leads(data.get("people", []))
+            except Exception as exc:
+                errors.append(f"{path}: {exc}")
+        raise RuntimeError("Apollo search_people failed on all endpoints: " + " | ".join(errors))
 
     async def enrich_person(
         self, email: Optional[str] = None, linkedin_url: Optional[str] = None
@@ -53,10 +61,16 @@ class ApolloClient:
             payload["email"] = email
         if linkedin_url:
             payload["linkedin_url"] = linkedin_url
-        response = await self.client.post("/people/match", json=payload)
-        response.raise_for_status()
-        person = response.json().get("person") or {}
-        return self._normalize_person(person)
+        errors: list[str] = []
+        for path in ("/v1/people/match", "/api/v1/people/match"):
+            try:
+                response = await self.client.post(path, json=payload)
+                response.raise_for_status()
+                person = response.json().get("person") or {}
+                return self._normalize_person(person)
+            except Exception as exc:
+                errors.append(f"{path}: {exc}")
+        raise RuntimeError("Apollo enrich_person failed on all endpoints: " + " | ".join(errors))
 
     def _normalize_leads(self, people: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         leads: List[Dict[str, Any]] = []

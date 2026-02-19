@@ -28,19 +28,23 @@ class LeadScraperAgent(BaseAgent):
             daily_target = min(REVENUE_SPRINT_MODE.get("daily_lead_target", 100), REVENUE_SPRINT_MODE.get("apollo_daily_limit", 160))
         
         prospects_scraped = []
-        
-        if os.getenv("DEMO_MODE", "").lower() == "true":
+        apollo_error = None
+        gmaps_error = None
+        demo_mode = os.getenv("DEMO_MODE", "").lower() == "true"
+        allow_auto_demo = os.getenv("AUTO_DEMO_ON_EMPTY", "false").lower() == "true"
+
+        if demo_mode:
             prospects_scraped = self._generate_demo_prospects(count=max(50, daily_target))
         else:
             # Scrape from Apollo
-            apollo_prospects = await self._scrape_apollo(limit=daily_target // 2)
+            apollo_prospects, apollo_error = await self._scrape_apollo(limit=daily_target // 2)
             prospects_scraped.extend(apollo_prospects)
 
             # Scrape from Google Maps
-            gmaps_prospects = await self._scrape_google_maps(limit=daily_target // 2)
+            gmaps_prospects, gmaps_error = await self._scrape_google_maps(limit=daily_target // 2)
             prospects_scraped.extend(gmaps_prospects)
 
-            if not prospects_scraped and os.getenv("AUTO_DEMO_ON_EMPTY", "true").lower() == "true":
+            if not prospects_scraped and allow_auto_demo:
                 self._log(
                     "scrape_fallback",
                     "warning",
@@ -51,19 +55,26 @@ class LeadScraperAgent(BaseAgent):
         # Save to database
         saved_count = await self._save_prospects(prospects_scraped)
         
+        demo_count = len([p for p in prospects_scraped if p.get("custom_fields", {}).get("demo_lead") is True])
+        live_count = len(prospects_scraped) - demo_count
+
         return {
             "success": True,
             "data": {
                 "prospects_found": len(prospects_scraped),
                 "prospects_saved": saved_count,
-                    "sources": {
-                        "apollo": len([p for p in prospects_scraped if p.get("source") == "apollo"]),
-                        "google_maps": len([p for p in prospects_scraped if p.get("source") == "google_maps"]),
-                        "demo": len([p for p in prospects_scraped if p.get("custom_fields", {}).get("demo_lead") is True]),
-                    },
-                    "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(len(prospects_scraped) * 0.01, 4),
-                }
+                "sources": {
+                    "apollo": len([p for p in prospects_scraped if p.get("source") == "apollo"]),
+                    "google_maps": len([p for p in prospects_scraped if p.get("source") == "google_maps"]),
+                    "demo": demo_count,
+                },
+                "auto_demo_fallback": allow_auto_demo and demo_count > 0 and not demo_mode,
+                "apollo_error": apollo_error,
+                "google_maps_error": gmaps_error,
+                # Only bill live lead generation, never demo fallback rows.
+                "cost_usd": 0 if (demo_mode or live_count <= 0) else round(live_count * 0.01, 4),
             }
+        }
 
     def _generate_demo_prospects(self, count: int = 10) -> List[Dict[str, Any]]:
         """Generate realistic demo leads for full pipeline testing."""
@@ -86,16 +97,16 @@ class LeadScraperAgent(BaseAgent):
                     "city": city,
                     "state": state,
                     "industry": "roofing",
-                    "source": "manual",
+                    "source": "demo",
                     "custom_fields": {"demo_lead": True},
                 }
             )
         return demo
     
-    async def _scrape_apollo(self, limit: int) -> List[Dict[str, Any]]:
+    async def _scrape_apollo(self, limit: int) -> tuple[List[Dict[str, Any]], str | None]:
         """Scrape leads from Apollo.io"""
         if not self.apollo_api_key:
-            return []
+            return [], "APOLLO_API_KEY not configured"
         
         prospects = []
         
@@ -125,17 +136,19 @@ class LeadScraperAgent(BaseAgent):
                 await client.close()
                 
         except Exception as e:
-            self._log("scrape_apollo", "error", f"Apollo scraping failed: {str(e)}")
+            error_message = f"Apollo scraping failed: {str(e)}"
+            self._log("scrape_apollo", "error", error_message)
+            return [], error_message
         
         # Normalize source label to match existing dashboard filters.
         for p in prospects:
             p["source"] = "apollo"
-        return prospects[:limit]
+        return prospects[:limit], None
     
-    async def _scrape_google_maps(self, limit: int) -> List[Dict[str, Any]]:
+    async def _scrape_google_maps(self, limit: int) -> tuple[List[Dict[str, Any]], str | None]:
         """Scrape leads from Google Maps API"""
         if not self.google_maps_api_key:
-            return []
+            return [], "GOOGLE_MAPS_API_KEY not configured"
         
         prospects = []
         
@@ -186,9 +199,11 @@ class LeadScraperAgent(BaseAgent):
                                 prospects.append(prospect)
                 
         except Exception as e:
-            self._log("scrape_google_maps", "error", f"Google Maps scraping failed: {str(e)}")
+            error_message = f"Google Maps scraping failed: {str(e)}"
+            self._log("scrape_google_maps", "error", error_message)
+            return [], error_message
         
-        return prospects
+        return prospects, None
     
     async def _get_place_details(self, client: httpx.AsyncClient, place_id: str) -> Dict[str, Any]:
         """Get detailed information for a place"""

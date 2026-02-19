@@ -36,6 +36,7 @@ class OutreachSequencerAgent(BaseAgent):
         ).limit(max_daily).all()
 
         emails_sent = 0
+        queued_for_approval = 0
 
         for prospect in prospects:
             try:
@@ -76,6 +77,7 @@ class OutreachSequencerAgent(BaseAgent):
                             )
                         )
                         self.db.commit()
+                        queued_for_approval += 1
                         continue
 
                 await self.email_service.send_email(
@@ -103,7 +105,16 @@ class OutreachSequencerAgent(BaseAgent):
                 self._log("send_outreach", "error", f"Failed for {prospect.company_name}: {str(e)}")
                 continue
 
-        return {"success": True, "data": {"prospects_processed": len(prospects), "emails_sent": emails_sent, "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(emails_sent * 0.003, 4)}}
+        return {
+            "success": True,
+            "data": {
+                "prospects_processed": len(prospects),
+                "emails_sent": emails_sent,
+                "queued_for_approval": queued_for_approval,
+                "approval_mode": os.getenv("OUTREACH_REQUIRE_APPROVAL", "true").lower() == "true",
+                "cost_usd": 0 if os.getenv("DEMO_MODE", "").lower() == "true" else round(emails_sent * 0.003, 4),
+            },
+        }
 
     async def _generate_initial_email(self, prospect: Prospect) -> str:
         prompt = f"""
